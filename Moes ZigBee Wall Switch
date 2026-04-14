@@ -31,11 +31,12 @@
  *  revision 1.4.3 - 2025-11-29 - kkossev - Moes Star Feather Smart Switches processing bug fixes, including date/time sync
  *  revision 1.4.4 - 2026-01-05 - kkossev - added TS0601 _TZE284_ms97nkyy
  *  revision 1.4.5 - 2026-02-04 - kkossev - adding TS0601 _TZE204_nvxorhcj @bhnoronha
+ *  revision 1.5.0 - 2026-04-14 - kkossev - adding all known Moes Star Feather Zigbee Wall Switches (1-4 gangs) with support for all their features, including _TZE200_z3u99qxt @smc.cross 
  *
 */
 
-static String version() { '1.4.5' }
-static String timeStamp() { '2026/02/04 7:00 AM' }
+static String version() { '1.5.0' }
+static String timeStamp() { '2026/04/14 9:57 PM' }
 import hubitat.device.HubAction
 import hubitat.device.Protocol
 import groovy.transform.Field
@@ -89,7 +90,8 @@ metadata {
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_leaqthtqq', endpointId:'01', inClusters:'0000,0004,0005,EF00', outClusters:'0019,000A', application:'42', deviceJoinName: 'Mercator Ikuü 5-gang switch'         // https://community.hubitat.com/t/driver-needed-for-a-6-gang-mercator-ikuu-zigbee-switch/142341/10?u=kkossev
         // Moes Star Feather Smart Switches
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_ydkqbmpt', endpointId:'01', inClusters:'0004,0005,EF00,0000', outClusters:'0019,000A', application:'42', deviceJoinName: 'Moes Star Feather Smart Switch 1 Gang'
-        fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_z3u99qxt', endpointId:'01', inClusters:'0004,0005,EF00,0000', outClusters:'0019,000A', application:'42', deviceJoinName: 'Moes Star Feather Smart Switch 1 Gang'
+        fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_z3u99qxt', endpointId:'01', inClusters:'0004,0005,EF00,0000', outClusters:'0019,000A', application:'41', deviceJoinName: 'Moes Star Feather Smart Switch 1 Gang'    // https://community.hubitat.com/t/re-release-moes-zigbee-wall-switch-1-2-3-gang-tuya-ts0601-switches/138120/43?u=kkossev 
+        fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_stvgmdjz', endpointId:'01', inClusters:'0004,0005,EF00,0000', outClusters:'0019,000A', application:'42', deviceJoinName: 'Moes Star Feather Smart Switch 1 Gang'
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_uenof8jd', endpointId:'01', inClusters:'0004,0005,EF00,0000', outClusters:'0019,000A', application:'42', deviceJoinName: 'Moes Star Feather Smart Switch 2 Gang'
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_tzyy0rtq', endpointId:'01', inClusters:'0004,0005,EF00,0000', outClusters:'0019,000A', application:'42', deviceJoinName: 'Moes Star Feather Smart Switch 2 Gang'
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_hktk6hze', endpointId:'01', inClusters:'0004,0005,EF00,0000', outClusters:'0019,000A', application:'42', deviceJoinName: 'Moes Star Feather Smart Switch 2 Gang'
@@ -114,7 +116,11 @@ metadata {
     attribute 'childLock', 'enum', ['off', 'on']
     attribute 'backlightMode', 'enum', ['off', 'on']
     attribute 'lightIndicatorMode', 'enum', ['none', 'lit when on', 'lit when off']
-    attribute 'vibrationMode', 'enum', ['Gear 0', 'Gear 1', 'Gear 2', 'Gear 3', 'Gear 4', 'Gear 5']
+    attribute 'vibrationMode', 'enum', ['Gear 0', 'Gear 1', 'Gear 2', 'Gear 3']
+    attribute 'switchMode_l1', 'enum', ['switch', 'scene']
+    attribute 'switchMode_l2', 'enum', ['switch', 'scene']
+    attribute 'switchMode_l3', 'enum', ['switch', 'scene']
+    attribute 'switchMode_l4', 'enum', ['switch', 'scene']
     attribute 'inductionMode', 'enum', ['off', 'on']
     attribute 'onColor', 'enum', ['Red', 'Blue', 'Green', 'White', 'Yellow', 'Magenta', 'Cyan', 'WarmWhite', 'WarmYellow']
     attribute 'offColor', 'enum', ['Red', 'Blue', 'Green', 'White', 'Yellow', 'Magenta', 'Cyan', 'WarmWhite', 'WarmYellow']
@@ -142,8 +148,27 @@ metadata {
             else if (isMoesStarFeatherSwitch()) {
                 input(name: 'backlightMode', type: 'enum', title: ("<b>Led: Backlight Mode</b>"), description: ("Select backlight mode (default: on)"), options: ['off', 'on'], defaultValue: 'on')
                 input(name: 'lightIndicatorMode', type: 'enum', title: ("<b>Led: Indicator Mode</b>"), description: ("Select led indicator mode (default: lit when on)"), options: ['none', 'lit when on', 'lit when off'], defaultValue: 'lit when on')
-                input(name: 'vibrationMode', type: 'enum', title: ("<b>Vibration Mode</b>"), description: ("Select vibration intensity for tactile feedback (default: Gear 1)"), options: ['Gear 0', 'Gear 1', 'Gear 2', 'Gear 3', 'Gear 4', 'Gear 5'], defaultValue: 'Gear 1')
+                input(name: 'vibrationMode', type: 'enum', title: ("<b>Vibration Mode</b>"), description: ("Select vibration intensity for tactile feedback (default: Gear 1)"), options: ['Gear 0', 'Gear 1', 'Gear 2', 'Gear 3'], defaultValue: 'Gear 1')
                 input(name: 'inductionMode', type: 'enum', title: ("<b>Induction Mode</b>"), description: ("Enable/disable induction sensing (default: off)"), options: ['off', 'on'], defaultValue: 'off')
+                int sfGangs = getStarFeatherGangCount()
+                input(name: 'switchMode_l1', type: 'enum', title: ("<b>Switch 1 Mode</b>"), description: ("Switch or scene mode for gang 1 (default: switch)"), options: ['switch', 'scene'], defaultValue: 'switch')
+                input(name: 'countdown_l1', type: 'number', title: ("<b>Switch 1 Countdown Timer (s)</b>"), description: ("Auto-off timer for gang 1, seconds, 0 = disabled (max 86400)"), defaultValue: 0, range: '0..86400')
+                input(name: 'momentary_l1', type: 'number', title: ("<b>Switch 1 Momentary Timer (s)</b>"), description: ("Momentary on timer for gang 1, seconds, 0 = disabled (max 3600)"), defaultValue: 0, range: '0..3600')
+                if (sfGangs >= 2) {
+                    input(name: 'switchMode_l2', type: 'enum', title: ("<b>Switch 2 Mode</b>"), description: ("Switch or scene mode for gang 2 (default: switch)"), options: ['switch', 'scene'], defaultValue: 'switch')
+                    input(name: 'countdown_l2', type: 'number', title: ("<b>Switch 2 Countdown Timer (s)</b>"), description: ("Auto-off timer for gang 2, seconds, 0 = disabled"), defaultValue: 0, range: '0..86400')
+                    input(name: 'momentary_l2', type: 'number', title: ("<b>Switch 2 Momentary Timer (s)</b>"), description: ("Momentary on timer for gang 2, seconds, 0 = disabled"), defaultValue: 0, range: '0..3600')
+                }
+                if (sfGangs >= 3) {
+                    input(name: 'switchMode_l3', type: 'enum', title: ("<b>Switch 3 Mode</b>"), description: ("Switch or scene mode for gang 3 (default: switch)"), options: ['switch', 'scene'], defaultValue: 'switch')
+                    input(name: 'countdown_l3', type: 'number', title: ("<b>Switch 3 Countdown Timer (s)</b>"), description: ("Auto-off timer for gang 3, seconds, 0 = disabled"), defaultValue: 0, range: '0..86400')
+                    input(name: 'momentary_l3', type: 'number', title: ("<b>Switch 3 Momentary Timer (s)</b>"), description: ("Momentary on timer for gang 3, seconds, 0 = disabled"), defaultValue: 0, range: '0..3600')
+                }
+                if (sfGangs >= 4) {
+                    input(name: 'switchMode_l4', type: 'enum', title: ("<b>Switch 4 Mode</b>"), description: ("Switch or scene mode for gang 4 (default: switch)"), options: ['switch', 'scene'], defaultValue: 'switch')
+                    input(name: 'countdown_l4', type: 'number', title: ("<b>Switch 4 Countdown Timer (s)</b>"), description: ("Auto-off timer for gang 4, seconds, 0 = disabled"), defaultValue: 0, range: '0..86400')
+                    input(name: 'momentary_l4', type: 'number', title: ("<b>Switch 4 Momentary Timer (s)</b>"), description: ("Momentary on timer for gang 4, seconds, 0 = disabled"), defaultValue: 0, range: '0..3600')
+                }
             }
             else if (is12GangSwitch()) {
                 input(name: 'backlightLevel', type: 'number', title: ("<b>Backlight Brightness</b>"), description: ("Set backlight brightness 0-99% (default: 50)"), defaultValue: 50, range: '0..99')
@@ -161,7 +186,16 @@ boolean isTratoZemismartKeypad() {
 }
 
 boolean isMoesStarFeatherSwitch() { //return true
-    return device.getDataValue('manufacturer') in ['_TZE200_ydkqbmpt', '_TZE200_z3u99qxt', '_TZE200_uenof8jd', '_TZE200_tzyy0rtq', '_TZE200_hktk6hze', '_TZE200_wv9ukqca', '_TZE200_zo0cfekv', '_TZE200_rd8cdssd', '_TZE200_dq8bu0pt', '_TZE200_9dhenr94', '_TZE200_hmabvy81']
+    return device.getDataValue('manufacturer') in ['_TZE200_ydkqbmpt', '_TZE200_z3u99qxt', '_TZE200_stvgmdjz', '_TZE200_uenof8jd', '_TZE200_tzyy0rtq', '_TZE200_hktk6hze', '_TZE200_wv9ukqca', '_TZE200_zo0cfekv', '_TZE200_rd8cdssd', '_TZE200_dq8bu0pt', '_TZE200_9dhenr94', '_TZE200_hmabvy81']
+}
+
+int getStarFeatherGangCount() {
+    String mfr = device.getDataValue('manufacturer')
+    if (mfr in ['_TZE200_ydkqbmpt', '_TZE200_z3u99qxt', '_TZE200_stvgmdjz']) { return 1 }
+    if (mfr in ['_TZE200_uenof8jd', '_TZE200_tzyy0rtq', '_TZE200_hktk6hze']) { return 2 }
+    if (mfr in ['_TZE200_wv9ukqca', '_TZE200_zo0cfekv', '_TZE200_rd8cdssd']) { return 3 }
+    if (mfr in ['_TZE200_dq8bu0pt', '_TZE200_9dhenr94', '_TZE200_hmabvy81']) { return 4 }
+    return 1
 }
 
 boolean is12GangSwitch() {
@@ -182,6 +216,18 @@ void initializeVars() {
         device.updateSetting('lightIndicatorMode', [type:'enum', value:'lit when on'])
         device.updateSetting('vibrationMode', [type:'enum', value:'Gear 1'])
         device.updateSetting('inductionMode', [type:'enum', value:'off'])
+        device.updateSetting('switchMode_l1', [type:'enum', value:'switch'])
+        device.updateSetting('switchMode_l2', [type:'enum', value:'switch'])
+        device.updateSetting('switchMode_l3', [type:'enum', value:'switch'])
+        device.updateSetting('switchMode_l4', [type:'enum', value:'switch'])
+        device.updateSetting('countdown_l1', [type:'number', value:0])
+        device.updateSetting('countdown_l2', [type:'number', value:0])
+        device.updateSetting('countdown_l3', [type:'number', value:0])
+        device.updateSetting('countdown_l4', [type:'number', value:0])
+        device.updateSetting('momentary_l1', [type:'number', value:0])
+        device.updateSetting('momentary_l2', [type:'number', value:0])
+        device.updateSetting('momentary_l3', [type:'number', value:0])
+        device.updateSetting('momentary_l4', [type:'number', value:0])
     }
     else {
         device.updateSetting('switchLightMode', [type:'enum', value:'position'])
@@ -224,7 +270,7 @@ def updated() {
     if (debugLogging) { log.debug 'Parent updated' }
     cmds = switchLightModeConfig() + powerOnBehaviorConfig() /*+ refresh()*/
     if (isMoesStarFeatherSwitch()) {
-        cmds += vibrationModeConfig() + inductionModeConfig()
+        cmds += vibrationModeConfig() + inductionModeConfig() + switchModeConfig() + countdownConfig() + momentaryConfig()
     }
     if (isTratoZemismartKeypad()) {
         cmds += getTuyaCommand('66', DP_TYPE_VALUE, zigbee.convertToHexString(settings?.backlightLevel as int, 8))
@@ -538,18 +584,22 @@ void processStarFeatherDP(final Map descMap, final int dp, final int dp_id, fina
         case 0x12 : // (18) mode_l1 - Switch1 mode
             strValue = fncmd == 0 ? 'switch' : 'scene'
             description = "Switch 1 mode is ${strValue}"
+            event = createEvent(name: 'switchMode_l1', value: strValue, descriptionText: description)
             break
         case 0x13 : // (19) mode_l2 - Switch2 mode
             strValue = fncmd == 0 ? 'switch' : 'scene'
             description = "Switch 2 mode is ${strValue}"
+            event = createEvent(name: 'switchMode_l2', value: strValue, descriptionText: description)
             break
         case 0x14 : // (20) mode_l3 - Switch3 mode
             strValue = fncmd == 0 ? 'switch' : 'scene'
             description = "Switch 3 mode is ${strValue}"
+            event = createEvent(name: 'switchMode_l3', value: strValue, descriptionText: description)
             break
         case 0x15 : // (21) mode_l4 - Switch4 mode
             strValue = fncmd == 0 ? 'switch' : 'scene'
             description = "Switch 4 mode is ${strValue}"
+            event = createEvent(name: 'switchMode_l4', value: strValue, descriptionText: description)
             break
         case 0x18 : // (24) state_l1 - Switch 1 state
             strValue = fncmd == 1 ? 'on' : 'off'
@@ -865,7 +915,7 @@ def on() {
 
 def refresh() {
     if (infoLogging) { log.info 'Refreshing...' }
-    if (isTratoZemismartKeypad() || is12GangSwitch() || is8GangNvxorhcj()) {
+    if (isTratoZemismartKeypad() || isMoesStarFeatherSwitch() || is12GangSwitch() || is8GangNvxorhcj()) {
         return [queryAllTuyaDP()]
     }
     return  [
@@ -983,6 +1033,7 @@ void setupChildDevices() {
         case '_TZE204_rzdkn5rx' :
         case '_TZE200_ydkqbmpt' :  // Moes Star Feather 1 Gang
         case '_TZE200_z3u99qxt' :  // Moes Star Feather 1 Gang
+        case '_TZE200_stvgmdjz' :  // Moes Star Feather 1 Gang
             buttons = 1
             break
         case '_TZE200_g1ib5ldv' :
@@ -1194,6 +1245,54 @@ List<String> inductionModeConfig() {
         if (infoLogging) { log.info "Star Feather - Setting induction mode: ${settings?.inductionMode}" }
         String dpValHex = zigbee.convertToHexString(inductionValue, 2)
         cmds = getTuyaCommand('67', DP_TYPE_BOOL, dpValHex)
+    }
+    return cmds
+}
+
+List<String> switchModeConfig() {
+    List<String> cmds = []
+    if (!isMoesStarFeatherSwitch()) { return cmds }
+    int gangs = getStarFeatherGangCount()
+    for (int g = 1; g <= gangs; g++) {
+        def val = settings["switchMode_l${g}"]
+        if (val != null) {
+            int modeValue = val == 'scene' ? 1 : 0
+            String dpHex = zigbee.convertToHexString(0x12 + g - 1, 2)
+            if (infoLogging) { log.info "Star Feather - Setting switch ${g} mode: ${val}" }
+            cmds += getTuyaCommand(dpHex, DP_TYPE_ENUM, zigbee.convertToHexString(modeValue, 2))
+        }
+    }
+    return cmds
+}
+
+List<String> countdownConfig() {
+    List<String> cmds = []
+    if (!isMoesStarFeatherSwitch()) { return cmds }
+    int gangs = getStarFeatherGangCount()
+    for (int g = 1; g <= gangs; g++) {
+        def val = settings["countdown_l${g}"]
+        if (val != null) {
+            int seconds = val as int
+            String dpHex = zigbee.convertToHexString(0x1E + g - 1, 2)
+            if (infoLogging) { log.info "Star Feather - Setting switch ${g} countdown: ${seconds}s" }
+            cmds += getTuyaCommand(dpHex, DP_TYPE_VALUE, zigbee.convertToHexString(seconds, 8))
+        }
+    }
+    return cmds
+}
+
+List<String> momentaryConfig() {
+    List<String> cmds = []
+    if (!isMoesStarFeatherSwitch()) { return cmds }
+    int gangs = getStarFeatherGangCount()
+    for (int g = 1; g <= gangs; g++) {
+        def val = settings["momentary_l${g}"]
+        if (val != null) {
+            int seconds = val as int
+            String dpHex = zigbee.convertToHexString(0x69 + g - 1, 2)
+            if (infoLogging) { log.info "Star Feather - Setting switch ${g} momentary timer: ${seconds}s" }
+            cmds += getTuyaCommand(dpHex, DP_TYPE_VALUE, zigbee.convertToHexString(seconds, 8))
+        }
     }
     return cmds
 }
