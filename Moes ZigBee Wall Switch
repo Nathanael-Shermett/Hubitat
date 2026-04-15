@@ -31,12 +31,12 @@
  *  revision 1.4.3 - 2025-11-29 - kkossev - Moes Star Feather Smart Switches processing bug fixes, including date/time sync
  *  revision 1.4.4 - 2026-01-05 - kkossev - added TS0601 _TZE284_ms97nkyy
  *  revision 1.4.5 - 2026-02-04 - kkossev - adding TS0601 _TZE204_nvxorhcj @bhnoronha
- *  revision 1.5.0 - 2026-04-14 - kkossev - adding all known Moes Star Feather Zigbee Wall Switches (1-4 gangs) with support for all their features, including _TZE200_z3u99qxt @smc.cross 
+ *  revision 1.5.0 - 2026-04-15 - kkossev - fixed Moes Star Feather on()/off() commands; added all known Moes Star Feather Zigbee Wall Switches (1-4 gangs) with support for all their features, including _TZE200_z3u99qxt @smc.cross 
  *
 */
 
 static String version() { '1.5.0' }
-static String timeStamp() { '2026/04/14 9:57 PM' }
+static String timeStamp() { '2026/04/15 8:23 AM' }
 import hubitat.device.HubAction
 import hubitat.device.Protocol
 import groovy.transform.Field
@@ -888,6 +888,15 @@ def off() {
             "he cmd 0x${device.deviceNetworkId} 0x${device.endpointId} 0xEF00 0x00 {0001180100010019010001001A010001001B010001001C010001001D01000100}", 'delay 200',
         ]
     }
+    if (isMoesStarFeatherSwitch()) {
+        List<String> cmds = []
+        int gangs = getStarFeatherGangCount()
+        for (int g = 1; g <= gangs; g++) {
+            cmds += getTuyaCommand(zigbee.convertToHexString(0x18 + g - 1, 2), DP_TYPE_BOOL, '00')
+        }
+        sendZigbeeCommands(cmds)
+        return
+    }
     return  [
         "he cmd 0x${device.deviceNetworkId} 0x${device.endpointId} 0xEF00 0x00 {0001010100010002010001000301000100}", 'delay 200',
     ]
@@ -907,6 +916,15 @@ def on() {
         return [
             "he cmd 0x${device.deviceNetworkId} 0x${device.endpointId} 0xEF00 0x00 {0001180100010119010001011A010001011B010001011C010001011D01000101}", 'delay 200',
         ]
+    }
+    if (isMoesStarFeatherSwitch()) {
+        List<String> cmds = []
+        int gangs = getStarFeatherGangCount()
+        for (int g = 1; g <= gangs; g++) {
+            cmds += getTuyaCommand(zigbee.convertToHexString(0x18 + g - 1, 2), DP_TYPE_BOOL, '01')
+        }
+        sendZigbeeCommands(cmds)
+        return
     }
     return  [
         "he cmd 0x${device.deviceNetworkId} 0x${device.endpointId} 0xEF00 0x00 {0001010100010102010001010301000101}", 'delay 200',
