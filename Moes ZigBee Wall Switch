@@ -32,11 +32,13 @@
  *  revision 1.4.4 - 2026-01-05 - kkossev - added TS0601 _TZE284_ms97nkyy
  *  revision 1.4.5 - 2026-02-04 - kkossev - adding TS0601 _TZE204_nvxorhcj @bhnoronha
  *  revision 1.5.0 - 2026-04-15 - kkossev - fixed Moes Star Feather on()/off() commands; added all known Moes Star Feather Zigbee Wall Switches (1-4 gangs) with support for all their features, including _TZE200_z3u99qxt @smc.cross 
+ *  revision 1.5.1 - 2026-06-03 - kkossev - added Quero automatização 1-gang _TZE284_nzns7udm, 2-gang _TZE284_1aqlsquf, 3-gang _TZE284_pgxndxp4; renamed _TZE284_ms97nkyy to 'Quero automatização 6-gang switch'; each Quero N-gang device creates N physical + N virtual child switches;
+ * 
  *
 */
 
-static String version() { '1.5.0' }
-static String timeStamp() { '2026/04/15 8:23 AM' }
+static String version() { '1.5.1' }
+static String timeStamp() { '2026/06/03 10:04 PM' }
 import hubitat.device.HubAction
 import hubitat.device.Protocol
 import groovy.transform.Field
@@ -106,7 +108,11 @@ metadata {
         //
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE204_jgujzjwh', endpointId:'01', inClusters:'0000,0004,0005,EF00', outClusters:'0019,000A', application:'4A', deviceJoinName: 'Eyzee 6-gang switch'                  // https://community.hubitat.com/t/re-release-moes-zigbee-wall-switch-1-2-3-gang-tuya-ts0601-switches/138120/12?u=kkossev
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_8eazvzo6', endpointId:'01', inClusters:'0000,0004,0005,EF00', outClusters:'0019,000A', application:'41', deviceJoinName: 'Eyzee 6-gang switch'                  // https://community.hubitat.com/t/re-release-moes-zigbee-wall-switch-1-2-3-gang-tuya-ts0601-switches/138120/12?u=kkossev
-        fingerprint profileId:"0104", model:"TS0601", manufacturer:"_TZE284_ms97nkyy", endpointId:'01', inClusters:"0000,0004,0005,EF00,0000,ED00", outClusters:"0019,000A",  controllerType: "ZGB", deviceJoinName: 'Brasil 12-gang switch'
+        // Quero automatização Switches
+        fingerprint profileId:"0104", model:"TS0601", manufacturer:"_TZE284_ms97nkyy", endpointId:'01', inClusters:"0000,0004,0005,EF00,0000,ED00", outClusters:"0019,000A",  controllerType: "ZGB", deviceJoinName: 'Quero automatização 6-gang switch'
+        fingerprint profileId:"0104", model:"TS0601", manufacturer:"_TZE284_nzns7udm", endpointId:'01', inClusters:"0000,0004,0005,EF00,0000,ED00", outClusters:"0019,000A",  controllerType: "ZGB", deviceJoinName: 'Quero automatização 1-gang switch'
+        fingerprint profileId:"0104", model:"TS0601", manufacturer:"_TZE284_1aqlsquf", endpointId:'01', inClusters:"0000,0004,0005,EF00,0000,ED00", outClusters:"0019,000A",  controllerType: "ZGB", deviceJoinName: 'Quero automatização 2-gang switch'
+        fingerprint profileId:"0104", model:"TS0601", manufacturer:"_TZE284_pgxndxp4", endpointId:'01', inClusters:"0000,0004,0005,EF00,0000,ED00", outClusters:"0019,000A",  controllerType: "ZGB", deviceJoinName: 'Quero automatização 3-gang switch'
     }
     
     attribute 'switchLightMode', 'enum', ['off', 'on', 'position']
@@ -170,7 +176,7 @@ metadata {
                     input(name: 'momentary_l4', type: 'number', title: ("<b>Switch 4 Momentary Timer (s)</b>"), description: ("Momentary on timer for gang 4, seconds, 0 = disabled"), defaultValue: 0, range: '0..3600')
                 }
             }
-            else if (is12GangSwitch()) {
+            else if (isQueroSwitch()) {
                 input(name: 'backlightLevel', type: 'number', title: ("<b>Backlight Brightness</b>"), description: ("Set backlight brightness 0-99% (default: 50)"), defaultValue: 50, range: '0..99')
             }
             else {
@@ -198,8 +204,34 @@ int getStarFeatherGangCount() {
     return 1
 }
 
-boolean is12GangSwitch() {
+boolean isQueroSwitch() {
+    return device.getDataValue('manufacturer') in ['_TZE284_ms97nkyy', '_TZE284_nzns7udm', '_TZE284_1aqlsquf', '_TZE284_pgxndxp4']
+}
+
+boolean isQuero12GangSwitch() {
     return device.getDataValue('manufacturer') == '_TZE284_ms97nkyy'
+}
+
+int getQueroGangCount() {
+    // Returns total child device count (physical + virtual)
+    switch (device.getDataValue('manufacturer')) {
+        case '_TZE284_ms97nkyy': return 12
+        case '_TZE284_nzns7udm': return 2
+        case '_TZE284_1aqlsquf': return 4
+        case '_TZE284_pgxndxp4': return 6
+        default: return 1
+    }
+}
+
+int getQueroPhysicalCount() {
+    // Returns number of physical relay channels only
+    switch (device.getDataValue('manufacturer')) {
+        case '_TZE284_ms97nkyy': return 6
+        case '_TZE284_nzns7udm': return 1
+        case '_TZE284_1aqlsquf': return 2
+        case '_TZE284_pgxndxp4': return 3
+        default: return 1
+    }
 }
 
 boolean is8GangNvxorhcj() {
@@ -228,6 +260,9 @@ void initializeVars() {
         device.updateSetting('momentary_l2', [type:'number', value:0])
         device.updateSetting('momentary_l3', [type:'number', value:0])
         device.updateSetting('momentary_l4', [type:'number', value:0])
+    }
+    else if (isQueroSwitch()) {
+        device.updateSetting('backlightLevel', [type:'number', value:50])
     }
     else {
         device.updateSetting('switchLightMode', [type:'enum', value:'position'])
@@ -288,8 +323,8 @@ def updated() {
         cmds += getTuyaCommand('0E', DP_TYPE_ENUM, zigbee.convertToHexString(key as int, 2))
         
     }
-    if (is12GangSwitch()) {
-        // 12-gang switch backlight brightness 0-99%
+    if (isQueroSwitch()) {
+        // Quero automatização switches: backlight brightness 0-99%
         int brightness = settings?.backlightLevel != null ? settings.backlightLevel as int : 50
         cmds += getTuyaCommand('65', DP_TYPE_VALUE, zigbee.convertToHexString(brightness, 8))
     }
@@ -320,8 +355,8 @@ def parse(String description) {
                 parseMoesStarFeatherSwitch(descMap)  // handle Star Feather specific parsing
                 return [:]
             }
-            if (is12GangSwitch()) {
-                parse12GangSwitch(descMap)  // handle 12-gang switch specific parsing
+            if (isQueroSwitch()) {
+                parse12GangSwitch(descMap)  // handle Quero automatização switch parsing
                 return [:]
             }
             if ((descMap?.command in ['00', '01', '02']) && descMap?.data?.size() >= 7) {
@@ -436,11 +471,15 @@ void parse12GangSwitch(Map descMap) {
     int dataLen = descMap.data.size()
     if (dataLen <= 5) {
         if (descMap.command == '0B') {
-            if (debugLogging) { log.debug "12-gang switch command acknowledgment received" }
+            if (debugLogging) { log.debug "Quero switch command acknowledgment received" }
             return
         }
         if (descMap.command == '24') {
             syncTuyaDateTime()
+            return
+        }
+        if (descMap.command == '11') {
+            if (debugLogging) { log.debug "parse12GangSwitch: unhandled command 0x11 data=${descMap?.data}, ignored" }
             return
         }
         if (debugLogging) { log.warn "parse12GangSwitch: unprocessed short Tuya command response: dp_id=${descMap?.data[3]} dp=${descMap?.data[2]} data=${descMap?.data}) size=${dataLen}" }
@@ -707,6 +746,10 @@ void process12GangDP(final Map descMap, final int dp, final int dp_id, final int
         case 0x1C : // (28) state_l5 - Physical Switch 5
         case 0x1D : // (29) state_l6 - Physical Switch 6
             int switchNum = dp - 0x18 + 1
+            if (!isQuero12GangSwitch() && isQueroSwitch() && switchNum > getQueroPhysicalCount()) {
+                if (debugLogging) { log.debug "unknown dp ${dp}" }
+                break
+            }
             strValue = fncmd == 1 ? 'on' : 'off'
             String childId = String.format('%02d', switchNum)
             def cd = getChildDevice("${device.id}-${childId}")
@@ -719,13 +762,71 @@ void process12GangDP(final Map descMap, final int dp, final int dp_id, final int
             break
 
         // example : catchall: 0104 EF00 01 01 0040 00 CA52 01 00 0000 02 01 00D60704000100
-        case 0x07 : // (7) action_1 - Virtual Scene Switch 7
+        case 0x05 : // (5) virtual scene switch 1 - Quero 1/2/3-channel only
+        case 0x06 : // (6) virtual scene switch 2 - Quero 2/3-channel only
+            if (!isQuero12GangSwitch() && isQueroSwitch()) {
+                int physCount = getQueroPhysicalCount()
+                int sceneOffset = dp - 0x05 + 1  // 0x05->1, 0x06->2
+                int virtualChildNum = physCount + sceneOffset
+                String childId = String.format('%02d', virtualChildNum)
+                def cd = getChildDevice("${device.id}-${childId}")
+                if (cd != null) {
+                    if (fncmd == 0) {
+                        String currentState = cd.currentValue('switch') ?: 'off'
+                        strValue = currentState == 'on' ? 'off' : 'on'
+                        description = "Virtual scene switch ${virtualChildNum} toggled to ${strValue}"
+                    } else if (fncmd == 3) {
+                        strValue = 'on'
+                        description = "Virtual scene switch ${virtualChildNum} turned on"
+                    } else if (fncmd == 2) {
+                        strValue = 'off'
+                        description = "Virtual scene switch ${virtualChildNum} turned off"
+                    } else {
+                        if (debugLogging) { log.debug "Virtual scene switch ${virtualChildNum}: unexpected fncmd=${fncmd}" }
+                        break
+                    }
+                    cd.parse([[name: 'switch', value: strValue, descriptionText: description]])
+                    if (debugLogging) { log.debug description }
+                }
+                updateParentSwitchState(childId, strValue)
+            } else {
+                if (debugLogging) { log.debug "unknown dp ${dp}" }
+            }
+            break
+        case 0x07 : // (7) action_1 - Virtual Scene Switch 7 (12-gang) / virtual scene 3 (Quero 3-channel)
         case 0x08 : // (8) action_2 - Virtual Scene Switch 8
         case 0x09 : // (9) action_3 - Virtual Scene Switch 9
         case 0x0A : // (10) action_4 - Virtual Scene Switch 10
         case 0x0B : // (11) action_5 - Virtual Scene Switch 11
         case 0x0C : // (12) action_6 - Virtual Scene Switch 12
-            int sceneNum = dp - 0x07 + 7  // Map to switches 7-12
+            if (!isQuero12GangSwitch() && isQueroSwitch()) {
+                // Quero 3-channel: DP 0x07 = virtual scene 3 -> child (physicalCount+3)
+                int physCount3 = getQueroPhysicalCount()
+                int virtualChildNum3 = physCount3 + 3
+                String childId3 = String.format('%02d', virtualChildNum3)
+                def cd3 = getChildDevice("${device.id}-${childId3}")
+                if (cd3 != null) {
+                    if (fncmd == 0) {
+                        String currentState = cd3.currentValue('switch') ?: 'off'
+                        strValue = currentState == 'on' ? 'off' : 'on'
+                        description = "Virtual scene switch ${virtualChildNum3} toggled to ${strValue}"
+                    } else if (fncmd == 3) {
+                        strValue = 'on'
+                        description = "Virtual scene switch ${virtualChildNum3} turned on"
+                    } else if (fncmd == 2) {
+                        strValue = 'off'
+                        description = "Virtual scene switch ${virtualChildNum3} turned off"
+                    } else {
+                        if (debugLogging) { log.debug "Virtual scene switch ${virtualChildNum3}: unexpected fncmd=${fncmd}" }
+                        break
+                    }
+                    cd3.parse([[name: 'switch', value: strValue, descriptionText: description]])
+                    if (debugLogging) { log.debug description }
+                }
+                updateParentSwitchState(childId3, strValue)
+                break
+            }
+            int sceneNum = dp - 0x07 + 7  // Map to switches 7-12 (12-gang)
             String childId = String.format('%02d', sceneNum)
             def cd = getChildDevice("${device.id}-${childId}")
             if (cd != null) {
@@ -757,14 +858,38 @@ void process12GangDP(final Map descMap, final int dp, final int dp_id, final int
             description = "Backlight brightness is ${strValue}%"
             event = createEvent(name: 'backlightLevel', value: strValue, descriptionText: description)
             break
+        case 0x24 : // (36) state_l1 for Quero 1/2/3-gang; unknown for 12-gang
+        case 0x25 : // (37) state_l2 for Quero 2/3-gang; unknown for 12-gang
+        case 0x26 : // (38) state_l3 for Quero 3-gang; unknown for 12-gang
+            if (!isQuero12GangSwitch()) {
+                int chanNum = dp - 0x24 + 1
+                if (chanNum > getQueroPhysicalCount()) {
+                    if (debugLogging) { log.debug "unknown dp ${dp}" }
+                    break
+                }
+                strValue = fncmd == 1 ? 'on' : 'off'
+                String childId = String.format('%02d', chanNum)
+                def cd = getChildDevice("${device.id}-${childId}")
+                if (cd != null) {
+                    description = "Child switch ${chanNum} is ${strValue}"
+                    cd.parse([[name: 'switch', value: strValue, descriptionText: description]])
+                    if (debugLogging) { log.debug description }
+                }
+                updateParentSwitchState(childId, strValue)
+            } else {
+                if (debugLogging) { log.debug "unknown dp ${dp}" }
+            }
+            break
         case 0x12 : // (18) unknown_dp_18
         case 0x13 : // (19) unknown_dp_19
         case 0x14 : // (20) unknown_dp_20
         case 0x15 : // (21) unknown_dp_21
         case 0x16 : // (22) unknown_dp_22
         case 0x17 : // (23) unknown_dp_23
-        case 0x24 : // (36) unknown_dp_36
-        case 0x26 : // (38) unknown_dp_38
+        case 0x1E : // (30) unknown_dp_30
+        case 0x1F : // (31) unknown_dp_31
+        case 0x20 : // (32) unknown_dp_32
+        case 0x21 : // (33) unknown_dp_33
         case 0x27 : // (39) unknown_dp_39
         case 0x28 : // (40) unknown_dp_40
         case 0x29 : // (41) unknown_dp_41
@@ -882,11 +1007,21 @@ def off() {
         }
         return cmds
     }
-    if (is12GangSwitch()) {
+    if (isQuero12GangSwitch()) {
         // 12-gang switch: Turn off first 6 physical relays (DPs 24-29 / 0x18-0x1D) in a single command
         return [
             "he cmd 0x${device.deviceNetworkId} 0x${device.endpointId} 0xEF00 0x00 {0001180100010019010001001A010001001B010001001C010001001D01000100}", 'delay 200',
         ]
+    }
+    if (isQueroSwitch()) {
+        // Quero automatização 1/2/3-channel: turn off physical relays only (DPs 0x18-0x1A)
+        List<String> cmds = []
+        int physical = getQueroPhysicalCount()
+        for (int g = 1; g <= physical; g++) {
+            cmds += getTuyaCommand(zigbee.convertToHexString(0x18 + g - 1, 2), DP_TYPE_BOOL, '00')
+        }
+        sendZigbeeCommands(cmds)
+        return
     }
     if (isMoesStarFeatherSwitch()) {
         List<String> cmds = []
@@ -911,11 +1046,21 @@ def on() {
         }
         return cmds
     }
-    if (is12GangSwitch()) {
+    if (isQuero12GangSwitch()) {
         // 12-gang switch: Turn on first 6 physical relays (DPs 24-29 / 0x18-0x1D) in a single command
         return [
             "he cmd 0x${device.deviceNetworkId} 0x${device.endpointId} 0xEF00 0x00 {0001180100010119010001011A010001011B010001011C010001011D01000101}", 'delay 200',
         ]
+    }
+    if (isQueroSwitch()) {
+        // Quero automatização 1/2/3-channel: turn on physical relays only (DPs 0x18-0x1A)
+        List<String> cmds = []
+        int physical = getQueroPhysicalCount()
+        for (int g = 1; g <= physical; g++) {
+            cmds += getTuyaCommand(zigbee.convertToHexString(0x18 + g - 1, 2), DP_TYPE_BOOL, '01')
+        }
+        sendZigbeeCommands(cmds)
+        return
     }
     if (isMoesStarFeatherSwitch()) {
         List<String> cmds = []
@@ -933,12 +1078,12 @@ def on() {
 
 def refresh() {
     if (infoLogging) { log.info 'Refreshing...' }
-    if (isTratoZemismartKeypad() || isMoesStarFeatherSwitch() || is12GangSwitch() || is8GangNvxorhcj()) {
+    //if (isTratoZemismartKeypad() || isMoesStarFeatherSwitch() || is12GangSwitch() || is8GangNvxorhcj()) {
         return [queryAllTuyaDP()]
-    }
-    return  [
-        lastCheckin()
-    ]
+    //}
+   // return  [
+   //     lastCheckin()
+   // ]
 }
 
 private String getChildId(childDevice) {
@@ -962,7 +1107,7 @@ void componentOn(childDevice) {
         String dpHex = (childId as int) <= 6 ? childId : (childId == '07' ? '65' : '66')
         List<String> cmds = getTuyaCommand(dpHex, DP_TYPE_BOOL, '01')
         sendZigbeeCommands(cmds)
-    } else if (is12GangSwitch()) {
+    } else if (isQuero12GangSwitch()) {
         // 12-gang switch: Switches 1-6 use DPs 24-29 (0x18-0x1D), Switches 7-12 use DPs 7-12 (0x07-0x0C)
         String childId = getChildId(childDevice)
         int switchNum = childId as int
@@ -977,6 +1122,26 @@ void componentOn(childDevice) {
             dpValue = 0x07 + switchNum - 7  // Virtual scenes: 07->0x07, 08->0x08, ... 12->0x0C
             dpType = DP_TYPE_ENUM
             dpCmd = '03'  // Use '03' for virtual switch ON command
+        }
+        String dpHex = zigbee.convertToHexString(dpValue, 2)
+        List<String> cmds = getTuyaCommand(dpHex, dpType, dpCmd)
+        sendZigbeeCommands(cmds)
+    } else if (isQueroSwitch()) {
+        // Quero automatização 1/2/3-channel: physical 01..N->DPs 0x18-0x1A (BOOL); virtual (N+1)..2N->DPs 0x05-0x07 (ENUM)
+        String childId = getChildId(childDevice)
+        int childNum = childId as int
+        int physical = getQueroPhysicalCount()
+        int dpValue
+        String dpType
+        String dpCmd
+        if (childNum <= physical) {
+            dpValue = 0x18 + childNum - 1
+            dpType = DP_TYPE_BOOL
+            dpCmd = '01'
+        } else {
+            dpValue = 0x05 + (childNum - physical) - 1
+            dpType = DP_TYPE_ENUM
+            dpCmd = '03'
         }
         String dpHex = zigbee.convertToHexString(dpValue, 2)
         List<String> cmds = getTuyaCommand(dpHex, dpType, dpCmd)
@@ -1006,7 +1171,7 @@ void componentOff(childDevice) {
         String dpHex = (childId as int) <= 6 ? childId : (childId == '07' ? '65' : '66')
         List<String> cmds = getTuyaCommand(dpHex, DP_TYPE_BOOL, '00')
         sendZigbeeCommands(cmds)
-    } else if (is12GangSwitch()) {
+    } else if (isQuero12GangSwitch()) {
         // 12-gang switch: Switches 1-6 use DPs 24-29 (0x18-0x1D), Switches 7-12 use DPs 7-12 (0x07-0x0C)
         String childId = getChildId(childDevice)
         int switchNum = childId as int
@@ -1021,6 +1186,26 @@ void componentOff(childDevice) {
             dpValue = 0x07 + switchNum - 7  // Virtual scenes: 07->0x07, 08->0x08, ... 12->0x0C
             dpType = DP_TYPE_ENUM
             dpCmd = '02'  // Use '02' for virtual switch OFF command
+        }
+        String dpHex = zigbee.convertToHexString(dpValue, 2)
+        List<String> cmds = getTuyaCommand(dpHex, dpType, dpCmd)
+        sendZigbeeCommands(cmds)
+    } else if (isQueroSwitch()) {
+        // Quero automatização 1/2/3-channel: physical 01..N->DPs 0x18-0x1A (BOOL); virtual (N+1)..2N->DPs 0x05-0x07 (ENUM)
+        String childId = getChildId(childDevice)
+        int childNum = childId as int
+        int physical = getQueroPhysicalCount()
+        int dpValue
+        String dpType
+        String dpCmd
+        if (childNum <= physical) {
+            dpValue = 0x18 + childNum - 1
+            dpType = DP_TYPE_BOOL
+            dpCmd = '00'
+        } else {
+            dpValue = 0x05 + (childNum - physical) - 1
+            dpType = DP_TYPE_ENUM
+            dpCmd = '02'
         }
         String dpHex = zigbee.convertToHexString(dpValue, 2)
         List<String> cmds = getTuyaCommand(dpHex, dpType, dpCmd)
@@ -1120,8 +1305,17 @@ void setupChildDevices() {
         case '_TZE204_dqolcpcp' :    // 6 relays and 6 scene switches (virtual) https://github.com/Koenkk/zigbee-herdsman-converters/blob/e9132fc65cc0bcbef60a5793976ba192fcc845ac/src/devices/qa.ts#L239 
             buttons = 12
             break
-        case '_TZE284_ms97nkyy' :    // QA 12-gang switch - 6 physical relays (DPs 24-29) + 6 virtual scene switches (DPs 7-12)
+        case '_TZE284_ms97nkyy' :    // Quero automatização 6-gang switch - 6 physical relays (DPs 24-29) + 6 virtual scene switches (DPs 7-12)
             buttons = 12
+            break
+        case '_TZE284_nzns7udm' :    // Quero automatização 1-gang switch (1 physical + 1 virtual = 2)
+            buttons = 2
+            break
+        case '_TZE284_1aqlsquf' :    // Quero automatização 2-gang switch (2 physical + 2 virtual = 4)
+            buttons = 4
+            break
+        case '_TZE284_pgxndxp4' :    // Quero automatização 3-gang switch (3 physical + 3 virtual = 6)
+            buttons = 6
             break
         case '_TZE200_vhy3iakz' :
         case '_TZ3000_uim07oem' :
