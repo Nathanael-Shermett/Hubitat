@@ -33,12 +33,13 @@
  *  revision 1.4.5 - 2026-02-04 - kkossev - adding TS0601 _TZE204_nvxorhcj @bhnoronha
  *  revision 1.5.0 - 2026-04-15 - kkossev - fixed Moes Star Feather on()/off() commands; added all known Moes Star Feather Zigbee Wall Switches (1-4 gangs) with support for all their features, including _TZE200_z3u99qxt @smc.cross 
  *  revision 1.5.1 - 2026-06-03 - kkossev - added Quero automatização 1-gang _TZE284_nzns7udm, 2-gang _TZE284_1aqlsquf, 3-gang _TZE284_pgxndxp4; renamed _TZE284_ms97nkyy to 'Quero automatização 6-gang switch'; each Quero N-gang device creates N physical + N virtual child switches;
- * 
+ *  revision 1.5.2 - 2026-06-19 - nathanael - added setPreference command to allow automations to change driver preferences (e.g. LED indicator mode) at runtime
+ *
  *
 */
 
-static String version() { '1.5.1' }
-static String timeStamp() { '2026/06/03 10:04 PM' }
+static String version() { '1.5.2' }
+static String timeStamp() { '2026/06/19 12:00 AM' }
 import hubitat.device.HubAction
 import hubitat.device.Protocol
 import groovy.transform.Field
@@ -51,6 +52,10 @@ metadata {
         capability 'Actuator'
         capability 'Refresh'
         capability 'Switch'
+
+        // Begin Nathanael Modifications
+        command 'setPreference', [[name:'preferencePair*', type:'STRING', description:"Format is 'key:value'"]]
+        // End Nathanael Modifications
 
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_amp6tsvy', endpointId:'01', inClusters:'0000,0004,0005,EF00', outClusters:'0019,000A', application:'42', deviceJoinName: 'Moes 1-Gang Switch / ZTS-EU1'
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_oisqyl4o', endpointId:'01', inClusters:'0000,0004,0005,EF00', outClusters:'0019,000A', application:'42', deviceJoinName: 'No Neutral Push Button Light Switch 1 Gang'
@@ -331,6 +336,32 @@ def updated() {
     if (infoLogging) { log.info 'Updated...' }
     sendZigbeeCommands(cmds)
 }
+
+// Begin Nathanael Modifications
+// Allows automations (e.g. Rule Machine) to change a driver preference at runtime,
+// since stock Hubitat drivers only expose preferences through the settings UI.
+// Example: setPreference('lightIndicatorMode:none') to suppress the LED.
+def setPreference(preferencePair) {
+    if (!preferencePair?.contains(':')) {
+        log.warn 'Invalid format. Use key:value'
+        return
+    }
+
+    def (key, value) = preferencePair.split(':', 2)
+
+    if (infoLogging) { log.info "Setting preference '${key}' to '${value}'" }
+
+    // Update in-memory setting
+    device.updateSetting(key, [value: value, type: 'enum'])
+    settings[key] = value
+
+    // Push to device by reusing the existing updated() lifecycle, which rebuilds
+    // and sends the appropriate Tuya DP commands from the current preferences.
+    updated()
+
+    if (infoLogging) { log.info "Done applying preference '${key}'" }
+}
+// End Nathanael Modifications
 
 
 private static int getCLUSTER_TUYA()          { 0xEF00 }
