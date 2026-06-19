@@ -53,9 +53,7 @@ metadata {
         capability 'Refresh'
         capability 'Switch'
 
-        // Begin Nathanael Modifications
         command 'setPreference', [[name:'preferencePair*', type:'STRING', description:"Format is 'key:value'"]]
-        // End Nathanael Modifications
 
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_amp6tsvy', endpointId:'01', inClusters:'0000,0004,0005,EF00', outClusters:'0019,000A', application:'42', deviceJoinName: 'Moes 1-Gang Switch / ZTS-EU1'
         fingerprint profileId:'0104', model:'TS0601', manufacturer:'_TZE200_oisqyl4o', endpointId:'01', inClusters:'0000,0004,0005,EF00', outClusters:'0019,000A', application:'42', deviceJoinName: 'No Neutral Push Button Light Switch 1 Gang'
@@ -337,31 +335,31 @@ def updated() {
     sendZigbeeCommands(cmds)
 }
 
-// Begin Nathanael Modifications
-// Allows automations (e.g. Rule Machine) to change a driver preference at runtime,
-// since stock Hubitat drivers only expose preferences through the settings UI.
-// Example: setPreference('lightIndicatorMode:none') to suppress the LED.
-def setPreference(preferencePair) {
+// Runtime preference setter so automations (e.g. Rule Machine) can change a
+// driver preference without opening the settings page. Format: "key:value".
+def setPreference(String preferencePair) {
     if (!preferencePair?.contains(':')) {
-        log.warn 'Invalid format. Use key:value'
+        log.warn 'setPreference: invalid format, expected "key:value"'
         return
     }
 
-    def (key, value) = preferencePair.split(':', 2)
+    String[] parts = preferencePair.split(':', 2)
+    String key = parts[0].trim()
+    String value = parts[1].trim()
+    if (!key) {
+        log.warn 'setPreference: missing preference key'
+        return
+    }
 
-    if (infoLogging) { log.info "Setting preference '${key}' to '${value}'" }
+    String type = value.isNumber() ? 'number' : (value.toLowerCase() in ['true', 'false'] ? 'bool' : 'enum')
+    if (infoLogging) { log.info "setPreference: ${key} = ${value} (${type})" }
 
-    // Update in-memory setting
-    device.updateSetting(key, [value: value, type: 'enum'])
+    device.updateSetting(key, [value: value, type: type])
+    // updateSetting() doesn't refresh the in-memory settings map within this
+    // execution, so mirror it here for the updated() call below to pick up.
     settings[key] = value
-
-    // Push to device by reusing the existing updated() lifecycle, which rebuilds
-    // and sends the appropriate Tuya DP commands from the current preferences.
     updated()
-
-    if (infoLogging) { log.info "Done applying preference '${key}'" }
 }
-// End Nathanael Modifications
 
 
 private static int getCLUSTER_TUYA()          { 0xEF00 }
