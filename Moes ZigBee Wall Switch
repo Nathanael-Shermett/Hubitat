@@ -278,7 +278,6 @@ void initializeVars() {
 def initialize() {
     if (infoLogging) { log.info 'Initializing...' }
     log.warn 'Debug logging will be automatically disabled after 24 hours!'
-    initializeVars()
     setupChildDevices()
     if (debugLogging) { runIn(86400, logsOff) }
     refresh()
